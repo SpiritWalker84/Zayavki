@@ -15,16 +15,17 @@ class DispatcherController extends Controller
     public function __construct(
         private RequestService $requestService
     ) {
-        $this->middleware(function ($request, $next) {
-            if (!auth()->user() || !auth()->user()->isDispatcher()) {
-                abort(403, 'Доступ запрещен. Требуется роль диспетчера.');
-            }
-            return $next($request);
-        });
+        $this->middleware('auth');
     }
 
     public function index(Request $httpRequest): View
     {
+        $user = auth()->user();
+        
+        if (!$user || !$user->isDispatcher()) {
+            abort(403, 'Доступ запрещен. Требуется роль диспетчера.');
+        }
+        
         $filters = $httpRequest->only(['status']);
         $requests = $this->requestService->paginate(15, $filters);
         $masters = User::where('role', User::ROLE_MASTER)->get();
@@ -34,6 +35,12 @@ class DispatcherController extends Controller
 
     public function assign(Request $httpRequest, RepairRequest $request): RedirectResponse
     {
+        $user = auth()->user();
+        
+        if (!$user || !$user->isDispatcher()) {
+            abort(403, 'Доступ запрещен. Требуется роль диспетчера.');
+        }
+        
         $validated = $httpRequest->validate([
             'master_id' => 'required|exists:users,id',
         ]);
@@ -54,6 +61,12 @@ class DispatcherController extends Controller
 
     public function cancel(RepairRequest $request): RedirectResponse
     {
+        $user = auth()->user();
+        
+        if (!$user || !$user->isDispatcher()) {
+            abort(403, 'Доступ запрещен. Требуется роль диспетчера.');
+        }
+        
         try {
             if (!$request->canBeCanceled()) {
                 return back()->withErrors(['error' => 'Заявка не может быть отменена в текущем статусе']);

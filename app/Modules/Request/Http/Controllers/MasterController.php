@@ -14,17 +14,17 @@ class MasterController extends Controller
     public function __construct(
         private RequestService $requestService
     ) {
-        $this->middleware(function ($request, $next) {
-            if (!auth()->user() || !auth()->user()->isMaster()) {
-                abort(403, 'Доступ запрещен. Требуется роль мастера.');
-            }
-            return $next($request);
-        });
+        $this->middleware('auth');
     }
 
     public function index(): View
     {
         $master = auth()->user();
+        
+        if (!$master || !$master->isMaster()) {
+            abort(403, 'Доступ запрещен. Требуется роль мастера.');
+        }
+        
         $requests = $this->requestService->getByAssignedTo($master);
 
         return view('master.index', compact('requests'));
@@ -33,6 +33,10 @@ class MasterController extends Controller
     public function takeInProgress(RepairRequest $request): RedirectResponse
     {
         $master = auth()->user();
+        
+        if (!$master || !$master->isMaster()) {
+            abort(403, 'Доступ запрещен. Требуется роль мастера.');
+        }
 
         try {
             $this->requestService->takeInProgress($request, $master);
@@ -47,6 +51,10 @@ class MasterController extends Controller
     public function complete(RepairRequest $request): RedirectResponse
     {
         $master = auth()->user();
+        
+        if (!$master || !$master->isMaster()) {
+            abort(403, 'Доступ запрещен. Требуется роль мастера.');
+        }
 
         try {
             $this->requestService->complete($request, $master);
