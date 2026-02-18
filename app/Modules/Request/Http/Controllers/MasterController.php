@@ -14,7 +14,7 @@ class MasterController extends Controller
     public function __construct(
         private RequestService $requestService
     ) {
-        $this->middleware('auth');
+        //
     }
 
     public function index(): View

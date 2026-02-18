@@ -15,7 +15,7 @@ class DispatcherController extends Controller
     public function __construct(
         private RequestService $requestService
     ) {
-        $this->middleware('auth');
+        //
     }
 
     public function index(Request $httpRequest): View
