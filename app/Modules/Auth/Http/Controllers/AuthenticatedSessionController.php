@@ -23,7 +23,15 @@ class AuthenticatedSessionController extends Controller
 
         if (Auth::attempt($validated, $request->boolean('remember'))) {
             $request->session()->regenerate();
-            return redirect()->intended(route('tasks.index'));
+            
+            $user = Auth::user();
+            if ($user->isDispatcher()) {
+                return redirect()->intended(route('dispatcher.index'));
+            } elseif ($user->isMaster()) {
+                return redirect()->intended(route('master.index'));
+            }
+            
+            return redirect()->intended(route('dashboard'));
         }
 
         return back()->withErrors([
