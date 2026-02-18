@@ -73,9 +73,17 @@ class RequestService
 
             // Проверяем, что заявка в статусе assigned
             if ($lockedRequest->status !== Request::STATUS_ASSIGNED) {
-                throw new \RuntimeException(
-                    "Заявка уже в статусе: {$lockedRequest->status}. Ожидался статус: " . Request::STATUS_ASSIGNED
-                );
+                $statusMessages = [
+                    Request::STATUS_IN_PROGRESS => 'Заявка уже взята в работу',
+                    Request::STATUS_DONE => 'Заявка уже завершена',
+                    Request::STATUS_CANCELED => 'Заявка отменена',
+                    Request::STATUS_NEW => 'Заявка еще не назначена мастеру',
+                ];
+                
+                $message = $statusMessages[$lockedRequest->status] 
+                    ?? "Заявка уже в статусе: {$lockedRequest->status}";
+                    
+                throw new \RuntimeException($message);
             }
 
             // Обновляем статус

@@ -44,7 +44,7 @@ class MasterController extends Controller
         } catch (\RuntimeException $e) {
             return back()->withErrors(['error' => $e->getMessage()]);
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Произошла ошибка при взятии заявки в работу']);
+            return back()->withErrors(['error' => 'Произошла ошибка при взятии заявки в работу. Попробуйте обновить страницу.']);
         }
     }
 
