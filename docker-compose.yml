@@ -49,7 +49,7 @@ services:
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - taskhub_mysql_data:/var/lib/mysql
+      - repair_service_mysql_data:/var/lib/mysql
     networks:
       - repair-service
 
@@ -61,7 +61,7 @@ services:
     ports:
       - "${REDIS_PORT:-6380}:6379"
     networks:
-      - taskhub
+      - repair-service
 
 volumes:
   repair_service_mysql_data:
