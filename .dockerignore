@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+storage/logs/*
+.idea
+.vscode
+
+# Python scripts and documents (not part of Laravel project)
+*.py
+*.odt
+*.doc
+*.docx
+*.xls
+*.xlsx

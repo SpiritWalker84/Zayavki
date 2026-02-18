@@ -1,0 +1,219 @@
+# Приложение для приёма и обработки заявок в ремонтную службу
+
+Веб-приложение для управления заявками в ремонтную службу с ролями диспетчера и мастера.
+
+## Стек технологий
+
+- **Backend**: Laravel 11 (PHP 8.2)
+- **База данных**: MySQL 8.0
+- **Веб-сервер**: Nginx
+- **Контейнеризация**: Docker, Docker Compose
+- **Кэш/Очереди**: Redis (опционально)
+
+## Быстрый старт
+
+### Вариант A: Docker Compose (рекомендуется)
+
+```bash
+# 1. Клонировать репозиторий
+git clone <repository-url>
+cd repair-service
+
+# 2. Создать .env из примера
+cp .env.example .env
+
+# 3. Запустить контейнеры
+docker compose up -d --build
+
+# 4. Сгенерировать ключ приложения
+docker compose exec app php artisan key:generate
+
+# 5. Выполнить миграции и сиды
+docker compose exec app php artisan migrate --seed
+
+# 6. Открыть в браузере
+# http://localhost:8080
+```
+
+### Вариант B: Без Docker
+
+```bash
+# 1. Установить зависимости
+composer install
+
+# 2. Создать .env из примера
+cp .env.example .env
+
+# 3. Сгенерировать ключ приложения
+php artisan key:generate
+
+# 4. Настроить базу данных в .env
+# DB_CONNECTION=mysql
+# DB_HOST=127.0.0.1
+# DB_PORT=3306
+# DB_DATABASE=repair_service
+# DB_USERNAME=root
+# DB_PASSWORD=
+
+# 5. Создать базу данных
+mysql -u root -p -e "CREATE DATABASE repair_service;"
+
+# 6. Выполнить миграции и сиды
+php artisan migrate --seed
+
+# 7. Запустить сервер разработки
+php artisan serve
+```
+
+**Порты по умолчанию**: 8080 (веб), 3307 (MySQL), 6380 (Redis)
+
+## Тестовые пользователи
+
+После выполнения сидов доступны следующие пользователи:
+
+### Диспетчер
+- **Email**: `dispatcher@example.com`
+- **Пароль**: `password`
+- **Роль**: Диспетчер
+- **Доступ**: Панель диспетчера (`/dispatcher`)
+
+### Мастера
+- **Email**: `master1@example.com`
+- **Пароль**: `password`
+- **Роль**: Мастер
+
+- **Email**: `master2@example.com`
+- **Пароль**: `password`
+- **Роль**: Мастер
+- **Доступ**: Панель мастера (`/master`)
+
+## Функционал
+
+### 1. Создание заявки (публичная страница)
+- **URL**: `/requests/create`
+- Форма для создания заявки с полями:
+  - Имя клиента (обязательно)
+  - Телефон (обязательно)
+  - Адрес (обязательно)
+  - Описание проблемы (обязательно)
+- После создания заявка получает статус `new`
+
+### 2. Панель диспетчера
+- **URL**: `/dispatcher`
+- **Требуется авторизация**: Да (роль диспетчера)
+- Функции:
+  - Просмотр списка всех заявок
+  - Фильтрация по статусу
+  - Назначение мастера на заявку (статус меняется на `assigned`)
+  - Отмена заявки (статус меняется на `canceled`)
+
+### 3. Панель мастера
+- **URL**: `/master`
+- **Требуется авторизация**: Да (роль мастера)
+- Функции:
+  - Просмотр списка заявок, назначенных на текущего мастера
+  - Взять заявку в работу (перевод `assigned → in_progress`)
+  - Завершить заявку (перевод `in_progress → done`)
+
+## Статусы заявок
+
+- `new` - Новая заявка
+- `assigned` - Назначена мастеру
+- `in_progress` - В работе
+- `done` - Выполнена
+- `canceled` - Отменена
+
+## Проверка защиты от race condition
+
+Приложение защищено от параллельных запросов при взятии заявки в работу. Используется транзакция с блокировкой строки (`lockForUpdate()`).
+
+### Способ 1: Использование скрипта race_test.sh
+
+```bash
+# 1. Войдите в систему как мастер и получите CSRF токен
+# Откройте консоль браузера и выполните:
+# document.querySelector('meta[name="csrf-token"]').content
+
+# 2. Найдите ID заявки в статусе "assigned" (например, ID=2)
+
+# 3. Запустите скрипт
+chmod +x race_test.sh
+./race_test.sh http://localhost:8080 2 "your_csrf_token_here"
+```
+
+### Способ 2: Два терминала с curl
+
+```bash
+# Терминал 1
+curl -X POST http://localhost:8080/master/requests/2/take \
+  -H "X-CSRF-TOKEN: YOUR_TOKEN" \
+  -H "Cookie: laravel_session=YOUR_SESSION" \
+  -d "_token=YOUR_TOKEN"
+
+# Терминал 2 (запустить одновременно)
+curl -X POST http://localhost:8080/master/requests/2/take \
+  -H "X-CSRF-TOKEN: YOUR_TOKEN" \
+  -H "Cookie: laravel_session=YOUR_SESSION" \
+  -d "_token=YOUR_TOKEN"
+```
+
+**Ожидаемый результат**: Один запрос успешен (HTTP 302), второй получает ошибку о том, что заявка уже взята в работу.
+
+### Способ 3: Автотесты
+
+```bash
+docker compose exec app php artisan test --filter RaceConditionTest
+```
+
+## Запуск тестов
+
+```bash
+# Все тесты
+docker compose exec app php artisan test
+
+# Конкретный тест
+docker compose exec app php artisan test --filter RequestCreationTest
+docker compose exec app php artisan test --filter RaceConditionTest
+```
+
+## Структура проекта
+
+Проект организован по модульному принципу:
+
+```
+app/
+├── Modules/
+│   ├── Auth/          # Модуль аутентификации
+│   ├── User/          # Модуль пользователей
+│   └── Request/       # Модуль заявок
+│       ├── Models/
+│       ├── Repositories/
+│       ├── Services/
+│       ├── Http/Controllers/
+│       └── Routes/
+database/
+├── migrations/        # Миграции БД
+├── seeders/           # Сиды
+└── factories/         # Фабрики для тестов
+resources/
+└── views/             # Blade шаблоны
+tests/
+└── Feature/           # Функциональные тесты
+```
+
+## Переменные окружения
+
+Основные переменные в `.env`:
+
+- `APP_NAME` - Название приложения
+- `APP_URL` - URL приложения
+- `DB_DATABASE` - Имя базы данных
+- `DB_USERNAME` - Пользователь БД
+- `DB_PASSWORD` - Пароль БД
+- `APP_PORT` - Порт веб-сервера (по умолчанию 8080)
+
+Полный список переменных см. в `.env.example`.
+
+## Лицензия
+
+MIT

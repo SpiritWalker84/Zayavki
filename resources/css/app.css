@@ -1,0 +1,4 @@
+/* TaskHub base styles */
+body { font-family: system-ui, sans-serif; margin: 0; }
+input, textarea, select, button { font: inherit; }
+a { color: #2563eb; }
