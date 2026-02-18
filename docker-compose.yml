@@ -15,7 +15,6 @@ services:
     environment:
       - APP_ENV=${APP_ENV:-production}
       - APP_DEBUG=${APP_DEBUG:-false}
-      - APP_KEY=${APP_KEY}
     env_file:
       - .env
     depends_on:
