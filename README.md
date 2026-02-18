@@ -127,42 +127,62 @@ php artisan serve
 
 Приложение защищено от параллельных запросов при взятии заявки в работу. Используется транзакция с блокировкой строки (`lockForUpdate()`).
 
-### Способ 1: Использование скрипта race_test.sh
+### Способ 1: Скрипт race_test.sh (из ТЗ)
 
+Скрипт `race_test.sh` находится в корне проекта для автоматической проверки параллельных запросов.
+
+**Подготовка:**
+1. Войдите в систему как мастер (`master1@example.com` / `password`)
+2. Откройте панель мастера в браузере
+3. Получите CSRF токен одним из способов:
+   - Откройте консоль браузера (F12 или Ctrl+Shift+K) и выполните:
+     ```javascript
+     document.querySelector('meta[name="csrf-token"]').content
+     ```
+   - Или откройте исходный код страницы (Ctrl+U) и найдите:
+     ```html
+     <meta name="csrf-token" content="ваш_токен_здесь">
+     ```
+4. Найдите ID заявки в статусе "assigned" (например, ID=2)
+
+**Запуск скрипта:**
 ```bash
-# 1. Войдите в систему как мастер и получите CSRF токен
-# Откройте консоль браузера и выполните:
-# document.querySelector('meta[name="csrf-token"]').content
-
-# 2. Найдите ID заявки в статусе "assigned" (например, ID=2)
-
-# 3. Запустите скрипт
 chmod +x race_test.sh
-./race_test.sh http://localhost:8080 2 "your_csrf_token_here"
+./race_test.sh http://193.42.127.176:8080 2 "ваш_csrf_токен"
 ```
 
-### Способ 2: Два терминала с curl
+**Ожидаемый результат:** Один запрос успешен, второй получает ошибку "Заявка уже взята в работу".
+
+### Способ 2: Браузер с двумя вкладками (самый простой)
+
+1. **Подготовка заявки:**
+   - Войдите как диспетчер (`dispatcher@example.com` / `password`)
+   - Откройте панель диспетчера: `/dispatcher`
+   - Назначьте заявку мастеру (статус изменится на `assigned`)
+
+2. **Войдите как мастер:**
+   - Выйдите из системы
+   - Войдите как мастер (`master1@example.com` / `password`)
+   - Откройте панель мастера: `/master`
+   - Найдите заявку со статусом "Назначена" (assigned)
+
+3. **Проверка race condition:**
+   - Откройте **вторую вкладку** браузера с той же страницей (`/master`)
+   - В **обеих вкладках** найдите одну и ту же заявку
+   - **Одновременно** нажмите кнопку "Взять в работу" в обеих вкладках
+
+**Ожидаемый результат:**
+- Одна вкладка покажет: ✅ "Заявка #X взята в работу"
+- Другая вкладка покажет: ❌ "Заявка уже взята в работу"
+
+### Способ 3: Автотесты (если установлены dev-зависимости)
 
 ```bash
-# Терминал 1
-curl -X POST http://localhost:8080/master/requests/2/take \
-  -H "X-CSRF-TOKEN: YOUR_TOKEN" \
-  -H "Cookie: laravel_session=YOUR_SESSION" \
-  -d "_token=YOUR_TOKEN"
+# Установить dev-зависимости (если еще не установлены)
+docker compose exec app composer install --dev
 
-# Терминал 2 (запустить одновременно)
-curl -X POST http://localhost:8080/master/requests/2/take \
-  -H "X-CSRF-TOKEN: YOUR_TOKEN" \
-  -H "Cookie: laravel_session=YOUR_SESSION" \
-  -d "_token=YOUR_TOKEN"
-```
-
-**Ожидаемый результат**: Один запрос успешен (HTTP 302), второй получает ошибку о том, что заявка уже взята в работу.
-
-### Способ 3: Автотесты
-
-```bash
-docker compose exec app php artisan test --filter RaceConditionTest
+# Запустить тест
+docker compose exec app vendor/bin/phpunit --filter RaceConditionTest
 ```
 
 ## Запуск тестов
